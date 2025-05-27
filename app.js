@@ -55,6 +55,8 @@ overlayLayerDark = new ol.layer.Tile({ source: new ol.source.XYZ({ url: 'https:/
 
 map = new ol.Map({
   target: 'map',
+  controls: ol.control.defaults({ zoom: false, rotate: false }),
+  interactions: ol.interaction.defaults({ altShiftDragRotate: false, pinchRotate: false }),
   layers: [currentBase === 'light' ? baseLayerLight : baseLayerDark, currentBase === 'light' ? overlayLayerLight : overlayLayerDark],
   view: new ol.View({ center: [0, 0], zoom: 2, projection: 'EPSG:3857' })
 });
