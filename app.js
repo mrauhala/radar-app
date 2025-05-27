@@ -1,4 +1,4 @@
-// app.js — full JavaScript logic for radar animation app
+
 
 (async function() {
 const wmsConfigs = {
