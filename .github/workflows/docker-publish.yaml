@@ -6,6 +6,7 @@ on:
     paths:
       - Dockerfile
       - index.html
+      - app.js
       - .github/workflows/docker-publish.yml
 
 jobs:
