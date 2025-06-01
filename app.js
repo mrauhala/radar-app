@@ -98,7 +98,13 @@ async function fetchTimes(config) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
     
-    const response = await fetch(`${config.wmsUrl}?service=WMS&request=GetCapabilities&namespace=${config.layerName}`, {
+    // Build GetCapabilities URL with optional namespace parameter
+    let capabilitiesUrl = `${config.wmsUrl}?service=WMS&request=GetCapabilities`;
+    if (config.useNamespace) {
+      capabilitiesUrl += `&namespace=${config.layerName}`;
+    }
+    
+    const response = await fetch(capabilitiesUrl, {
       signal: controller.signal
     });
     
@@ -145,13 +151,70 @@ async function fetchTimes(config) {
 }
 
 async function preloadFrames(config, times) {
-  const promises = times.map(time => new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => resolve({ img, time });
-    img.onerror = () => resolve(null);
-    img.src = `${config.wmsUrl}?service=WMS&version=1.3.0&request=GetMap&layers=${config.layerName}&styles=&format=image/svg+xml&transparent=true&crs=EPSG:3857&bbox=${layerExtent.join(',')}&width=4096&height=4096&time=${time}`.replace(/\+/g, '%2B');
-  }));
-  prefetchedFrames = (await Promise.all(promises)).filter(f => f);
+  let loadedCount = 0;
+  const totalFrames = times.length;
+  
+  // Set progress bar to loading mode (green background)
+  progressFill.style.background = '#00ff00';
+  progressFill.style.width = '0%';
+  
+  // Limit concurrent requests to avoid overwhelming servers
+  const BATCH_SIZE = 6; // Process 6 frames at a time
+  const results = [];
+  
+  for (let i = 0; i < times.length; i += BATCH_SIZE) {
+    const batch = times.slice(i, i + BATCH_SIZE);
+    
+    const batchPromises = batch.map(time => new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        loadedCount++;
+        // Update progress bar as frames load
+        const progress = (loadedCount / totalFrames) * 100;
+        progressFill.style.width = `${progress}%`;
+        
+        // Update loading text to show frame count
+        const loadingText = document.querySelector('#loadingIndicator span');
+        if (loadingText) {
+          loadingText.textContent = `Loading ${loadedCount}/${totalFrames}`;
+        }
+        
+        resolve({ img, time });
+      };
+      img.onerror = () => {
+        loadedCount++;
+        // Update progress even for failed frames
+        const progress = (loadedCount / totalFrames) * 100;
+        progressFill.style.width = `${progress}%`;
+        
+        // Update loading text to show frame count
+        const loadingText = document.querySelector('#loadingIndicator span');
+        if (loadingText) {
+          loadingText.textContent = `Loading ${loadedCount}/${totalFrames}`;
+        }
+        
+        console.warn(`Failed to load frame for time: ${time}`);
+        resolve(null);
+      };
+      img.src = `${config.wmsUrl}?service=WMS&version=1.3.0&request=GetMap&layers=${config.layerName}&styles=&format=image/svg+xml&transparent=true&crs=EPSG:3857&bbox=${layerExtent.join(',')}&width=4096&height=4096&time=${time}`.replace(/\+/g, '%2B');
+    }));
+    
+    // Wait for current batch to complete before starting next batch
+    const batchResults = await Promise.all(batchPromises);
+    results.push(...batchResults);
+  }
+  
+  prefetchedFrames = results.filter(f => f);
+  
+  // Reset progress bar to normal blue color after loading
+  progressFill.style.background = '#00aaff';
+  progressFill.style.width = '0%';
+  
+  // Reset loading text
+  const loadingText = document.querySelector('#loadingIndicator span');
+  if (loadingText) {
+    loadingText.textContent = 'Updating…';
+  }
 }
 
 function showError(message) {
