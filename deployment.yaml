@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: radar-app
+  labels:
+    app: radar-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: radar-app
+  template:
+    metadata:
+      labels:
+        app: radar-app
+    spec:
+      containers:
+      - name: radar-app
+        image: ghcr.io/mrauhala/radar-app:latest  # replace with your image
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: radar-app-service
+spec:
+  selector:
+    app: radar-app
+  ports:
+  - port: 80
+    targetPort: 80
+  type: ClusterIP
