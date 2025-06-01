@@ -73,7 +73,7 @@ spec:
           runAsNonRoot: true
           runAsUser: 101  # nginx user
           runAsGroup: 101 # nginx group
-          readOnlyRootFilesystem: true
+          readOnlyRootFilesystem: false  # nginx needs to write to cache dirs
           capabilities:
             drop:
             - ALL

@@ -18,6 +18,16 @@ COPY browserconfig.xml ./
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+# Create necessary directories for nginx to run as non-root
+RUN mkdir -p /var/cache/nginx/client_temp \
+             /var/cache/nginx/proxy_temp \
+             /var/cache/nginx/fastcgi_temp \
+             /var/cache/nginx/uwsgi_temp \
+             /var/cache/nginx/scgi_temp \
+             /var/run/nginx \
+    && chown -R nginx:nginx /var/cache/nginx /var/run/nginx \
+    && chmod -R 755 /var/cache/nginx /var/run/nginx
+
 # Create icons directory (will be empty if no icons exist)
 RUN mkdir -p icons
 

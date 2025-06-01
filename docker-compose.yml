@@ -26,10 +26,7 @@ services:
       - "description=Weather radar PWA application"
     security_opt:
       - no-new-privileges:true
-    read_only: true
-    tmpfs:
-      - /var/cache/nginx:noexec,nosuid,size=50m
-      - /var/run:noexec,nosuid,size=50m
+    # Removed read_only constraint to allow nginx cache operations
     networks:
       - radar-network
 
