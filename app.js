@@ -10,6 +10,11 @@ let intervalDelay = [450, 225, 150, 113][speedIndex];
 const speeds = [450, 225, 150, 113];
 let prefetchedFrames = [], currentFrame = 0, intervalId = null, isPlaying = true;
 
+// Auto-refresh variables
+let refreshIntervalId = null;
+let currentConfig = null;
+let lastKnownTimes = [];
+
 const toggleBaseBtn = document.getElementById('toggleBaseBtn');
 const opacityBtn = document.getElementById('opacityBtn');
 const playPauseBtn = document.getElementById('playPauseBtn');
@@ -32,6 +37,7 @@ countryMenu.querySelectorAll('button').forEach(btn => {
     localStorage.setItem('lastCountry', country);
     countryMenu.style.display = 'none';
     stopAnimation();
+    stopAutoRefresh(); // Stop auto-refresh when switching countries
     await initMap(wmsConfigs[country]);
     if (prefetchedFrames.length > 0) {
       startAnimation();
@@ -91,10 +97,12 @@ function parsePeriodTimes(raw) {
   return result;
 }
 
-async function fetchTimes(config) {
+async function fetchTimes(config, silent = false) {
   try {
-    // Update status to show we're fetching capabilities
-    showLoadingStatus('Fetching server capabilities...');
+    // Update status to show we're fetching capabilities (only if not silent)
+    if (!silent) {
+      showLoadingStatus('Fetching server capabilities...');
+    }
     
     // Create AbortController for timeout
     const controller = new AbortController();
@@ -116,8 +124,10 @@ async function fetchTimes(config) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
-    // Update status to show we're parsing capabilities
-    showLoadingStatus('Processing server capabilities...');
+    // Update status to show we're parsing capabilities (only if not silent)
+    if (!silent) {
+      showLoadingStatus('Processing server capabilities...');
+    }
     
     const xml = await response.text();
     const doc = new DOMParser().parseFromString(xml, 'text/xml');
@@ -143,8 +153,10 @@ async function fetchTimes(config) {
       throw new Error('No time dimension found in layer');
     }
     
-    // Update status to show capabilities loaded successfully
-    showLoadingStatus('Server capabilities loaded successfully');
+    // Update status to show capabilities loaded successfully (only if not silent)
+    if (!silent) {
+      showLoadingStatus('Server capabilities loaded successfully');
+    }
     
     return dim.textContent.includes(',') ? dim.textContent.split(',').slice(-12) : parsePeriodTimes(dim.textContent).slice(-12);
   } catch (error) {
@@ -428,6 +440,10 @@ async function initMap(config) {
     
     console.log(`Found ${times.length} time frames`);
     
+    // Store config and times for auto-refresh
+    currentConfig = config;
+    lastKnownTimes = [...times]; // Make a copy of the times array
+    
     // Update status to show we're preparing to load images
     showLoadingStatus('Preparing to load radar images...');
     
@@ -469,6 +485,9 @@ async function initMap(config) {
       throw new Error('Failed to load radar images');
     }
     
+    // Start auto-refresh after successful initialization
+    startAutoRefresh();
+    
     console.log('Map initialization completed successfully');
     
   } catch (error) {
@@ -479,6 +498,7 @@ async function initMap(config) {
     prefetchedFrames = [];
     currentFrame = 0;
     stopAnimation();
+    stopAutoRefresh(); // Stop auto-refresh on error
     
     // Clear any existing radar layer
     if (imageCanvasLayer) {
@@ -491,9 +511,163 @@ async function initMap(config) {
   }
 }
 
+// New functions for checking and loading specific frames
+async function checkForNewFrames() {
+  if (!currentConfig) {
+    console.log('No current configuration available for auto-refresh');
+    return;
+  }
+  
+  if (!lastKnownTimes || lastKnownTimes.length === 0) {
+    console.log('No last known times available for comparison');
+    return;
+  }
+  
+  try {
+    console.log('Checking for new radar frames...');
+    
+    // Fetch latest times
+    const newTimes = await fetchTimes(currentConfig, true); // true = silent mode
+    
+    if (!newTimes || newTimes.length === 0) {
+      console.log('No new times received from server');
+      return;
+    }
+    
+    // Compare with last known times
+    const newTimesteps = newTimes.filter(time => !lastKnownTimes.includes(time));
+    
+    if (newTimesteps.length === 0) {
+      console.log('No new radar frames available');
+      return;
+    }
+    
+    console.log(`Found ${newTimesteps.length} new radar frames`);
+    
+    // Load new frames
+    const newFrames = await loadSpecificFrames(currentConfig, newTimesteps);
+    
+    if (newFrames.length > 0) {
+      // Add new frames to the end of prefetchedFrames
+      prefetchedFrames.push(...newFrames);
+      
+      // Sort all frames by time to ensure correct order
+      prefetchedFrames.sort((a, b) => new Date(a.time) - new Date(b.time));
+      
+      // Keep only the latest 12 frames
+      if (prefetchedFrames.length > 12) {
+        const framesToRemove = prefetchedFrames.length - 12;
+        prefetchedFrames.splice(0, framesToRemove);
+        
+        // Adjust current frame index if needed
+        if (currentFrame >= framesToRemove) {
+          currentFrame -= framesToRemove;
+        } else {
+          currentFrame = 0;
+        }
+      }
+      
+      // Update last known times
+      lastKnownTimes = [...newTimes]; // Make a copy
+      
+      // Update displays and canvas source
+      updateDisplays();
+      if (imageCanvasSource) {
+        imageCanvasSource.changed();
+      }
+      
+      console.log(`Updated radar animation with ${newFrames.length} new frames`);
+      
+      // Brief notification to user
+      showLoadingStatus(`Added ${newFrames.length} new radar images`);
+      setTimeout(() => {
+        hideLoadingStatus();
+      }, 2000);
+    }
+    
+  } catch (error) {
+    console.error('Error checking for new frames:', error);
+    // Don't show error to user for background checks unless it's critical
+    // Only log to console to avoid interrupting user experience
+  }
+}
+
+async function loadSpecificFrames(config, times) {
+  const newFrames = [];
+  
+  // Load frames with reduced batch size for background updates
+  const BATCH_SIZE = 2;
+  
+  for (let i = 0; i < times.length; i += BATCH_SIZE) {
+    const batch = times.slice(i, i + BATCH_SIZE);
+    
+    const batchPromises = batch.map(time => new Promise(resolve => {
+      const img = new Image();
+      
+      // Shorter timeout for background updates
+      const timeoutId = setTimeout(() => {
+        console.warn(`Background frame load timeout for time: ${time}`);
+        resolve(null);
+      }, 30000); // 30 second timeout
+      
+      img.onload = () => {
+        clearTimeout(timeoutId);
+        const frameData = { img, time };
+        newFrames.push(frameData);
+        resolve(frameData);
+      };
+      
+      img.onerror = () => {
+        clearTimeout(timeoutId);
+        console.warn(`Failed to load background frame for time: ${time}`);
+        resolve(null);
+      };
+      
+      img.src = `${config.wmsUrl}?service=WMS&version=1.3.0&request=GetMap&layers=${config.layerName}&styles=&format=image/svg+xml&transparent=true&crs=EPSG:3857&bbox=${layerExtent.join(',')}&width=4096&height=4096&time=${time}`.replace(/\+/g, '%2B');
+    }));
+    
+    await Promise.all(batchPromises);
+  }
+  
+  return newFrames.filter(frame => frame !== null);
+}
+
+function startAutoRefresh() {
+  // Clear any existing refresh interval
+  if (refreshIntervalId) {
+    clearInterval(refreshIntervalId);
+    refreshIntervalId = null;
+  }
+  
+  // Only start auto-refresh if we have a valid configuration
+  if (!currentConfig) {
+    console.log('Cannot start auto-refresh: No current configuration available');
+    return;
+  }
+  
+  // Start checking for new frames every minute
+  refreshIntervalId = setInterval(checkForNewFrames, 60000); // 60 seconds
+  console.log('Auto-refresh started - checking for new frames every minute');
+  
+  // Also check for new frames immediately after a short delay
+  // This helps catch any frames that became available during initialization
+  setTimeout(checkForNewFrames, 10000); // Check again after 10 seconds
+}
+
+function stopAutoRefresh() {
+  if (refreshIntervalId) {
+    clearInterval(refreshIntervalId);
+    refreshIntervalId = null;
+    console.log('Auto-refresh stopped');
+  }
+}
+
 // Initialize with error handling
 (async () => {
   try {
+    // Stop any existing auto-refresh before initializing
+    stopAutoRefresh();
+    
     await initMap(wmsConfigs[currentCountry]);
     if (prefetchedFrames.length > 0) {
       startAnimation();
