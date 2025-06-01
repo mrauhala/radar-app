@@ -288,7 +288,7 @@ function showError(message) {
     errorDiv.id = 'errorMessage';
     errorDiv.style.cssText = `
       position: fixed;
-      top: 10px;
+      top: calc(10px + env(safe-area-inset-top));
       left: 50%;
       transform: translateX(-50%);
       background: #ff4444;
@@ -328,7 +328,7 @@ function showLoadingStatus(message) {
     loadingDiv.id = 'loadingMessage';
     loadingDiv.style.cssText = `
       position: fixed;
-      top: 10px;
+      top: calc(10px + env(safe-area-inset-top));
       left: 50%;
       transform: translateX(-50%);
       background: #0088cc;
