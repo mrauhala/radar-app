@@ -172,7 +172,7 @@ async function preloadFrames(config, times) {
       let hasFirstFrame = false;
       
       // Update status to show we're starting to load images
-      showLoadingStatus(`Starting to load ${totalFrames} radar images...`);
+      showLoadingStatus(`Loading radar images 0/${totalFrames}...`);
       
       // Set progress bar to loading mode (green background)
       progressFill.style.background = '#00ff00';
@@ -199,7 +199,7 @@ async function preloadFrames(config, times) {
             progressFill.style.width = `${progress}%`;
             
             // Update status with timeout info
-            showLoadingStatus(`Loading ${loadedCount}/${totalFrames} radar images (some timeouts)...`);
+            showLoadingStatus(`Loading radar images ${loadedCount}/${totalFrames} (some timeouts)...`);
             
             resolve(null); // Resolve with null for timeout
           }, 60000); // 60 second timeout (increased from 30)
@@ -219,8 +219,6 @@ async function preloadFrames(config, times) {
             if (!hasFirstFrame) {
               hasFirstFrame = true;
               console.log('First frame loaded, starting preview');
-              // Update status to show first frame is ready
-              showLoadingStatus(`First radar image loaded, loading remaining ${totalFrames - 1}...`);
               // Update displays and start animation
               currentFrame = 0;
               updateDisplays();
@@ -234,13 +232,7 @@ async function preloadFrames(config, times) {
             progressFill.style.width = `${progress}%`;
             
             // Update loading status to show frame count
-            if (!hasFirstFrame) {
-              // Still loading first frame
-              showLoadingStatus(`Loading radar images ${loadedCount}/${totalFrames}...`);
-            } else {
-              // First frame loaded, showing remaining count
-              showLoadingStatus(`First radar image loaded, loading remaining ${totalFrames - loadedCount}...`);
-            }
+            showLoadingStatus(`Loading radar images ${loadedCount}/${totalFrames}...`);
             
             resolve(frameData);
           };
@@ -252,7 +244,7 @@ async function preloadFrames(config, times) {
             progressFill.style.width = `${progress}%`;
             
             // Update loading status to show frame count with error info
-            showLoadingStatus(`Loading ${loadedCount}/${totalFrames} radar images (some errors)...`);
+            showLoadingStatus(`Loading radar images ${loadedCount}/${totalFrames} (some errors)...`);
             
             console.warn(`Failed to load frame for time: ${time}`);
             resolve(null);
@@ -272,21 +264,26 @@ async function preloadFrames(config, times) {
       const successfulFrames = results.filter(f => f);
       console.log(`Successfully loaded ${successfulFrames.length} out of ${totalFrames} frames`);
       
-      // Show completion status
-      if (successfulFrames.length === totalFrames) {
-        showLoadingStatus(`All ${totalFrames} radar images loaded successfully!`);
-      } else if (successfulFrames.length > 0) {
-        showLoadingStatus(`Loaded ${successfulFrames.length} of ${totalFrames} radar images`);
-      }
+      // Show completion status first
+      showLoadingStatus(`Loading radar images ${loadedCount}/${totalFrames}...`);
+      
+      // Wait a moment to show the final count, then show completion message
+      setTimeout(() => {
+        if (successfulFrames.length === totalFrames) {
+          showLoadingStatus(`All ${totalFrames} radar images loaded successfully!`);
+        } else if (successfulFrames.length > 0) {
+          showLoadingStatus(`Loaded ${successfulFrames.length} of ${totalFrames} radar images`);
+        }
+        
+        // Hide loading status after showing completion message
+        setTimeout(() => {
+          hideLoadingStatus();
+        }, 2000);
+      }, 500);
       
       // Reset progress bar to normal blue color after loading
       progressFill.style.background = '#00aaff';
       progressFill.style.width = '0%';
-      
-      // Hide loading status after a short delay to show completion message
-      setTimeout(() => {
-        hideLoadingStatus();
-      }, 2000);
       
       clearTimeout(globalTimeoutId);
       resolve();
