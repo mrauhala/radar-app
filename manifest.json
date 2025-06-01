@@ -1,0 +1,150 @@
+{
+  "name": "Radar Animation Weather App",
+  "short_name": "RadarApp",
+  "description": "Real-time weather radar visualization app supporting multiple countries with animated precipitation data",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#000000",
+  "background_color": "#000000",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["weather", "utilities", "productivity"],
+  "screenshots": [
+    {
+      "src": "screenshots/desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Desktop view showing radar animation controls"
+    },
+    {
+      "src": "screenshots/mobile.png", 
+      "sizes": "360x640",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Mobile view with country selection and time display"
+    }
+  ],
+  "icons": [
+    {
+      "src": "icons/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-96.png",
+      "sizes": "96x96", 
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png", 
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Finland Radar",
+      "short_name": "Finland",
+      "description": "View radar data for Finland",
+      "url": "/?country=finland",
+      "icons": [
+        {
+          "src": "icons/shortcut-finland.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Ethiopia Radar", 
+      "short_name": "Ethiopia",
+      "description": "View radar data for Ethiopia",
+      "url": "/?country=ethiopia",
+      "icons": [
+        {
+          "src": "icons/shortcut-ethiopia.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Vietnam Radar",
+      "short_name": "Vietnam", 
+      "description": "View radar data for Vietnam",
+      "url": "/?country=vietnam",
+      "icons": [
+        {
+          "src": "icons/shortcut-vietnam.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Georgia Radar",
+      "short_name": "Georgia",
+      "description": "View radar data for Georgia", 
+      "url": "/?country=georgia",
+      "icons": [
+        {
+          "src": "icons/shortcut-georgia.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "edge_side_panel": {
+    "preferred_width": 480
+  }
+}

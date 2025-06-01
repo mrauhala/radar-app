@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  radar-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: radar-app:latest
+    container_name: radar-app
+    ports:
+      - "8080:8080"
+    environment:
+      - NGINX_ENTRYPOINT_QUIET_LOGS=1
+    volumes:
+      # Mount icons directory if it exists locally
+      - ./icons:/usr/share/nginx/html/icons:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "com.docker.compose.project=radar-app"
+      - "description=Weather radar PWA application"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:noexec,nosuid,size=50m
+      - /var/run:noexec,nosuid,size=50m
+    networks:
+      - radar-network
+
+networks:
+  radar-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
