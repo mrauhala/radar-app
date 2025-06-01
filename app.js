@@ -153,20 +153,24 @@ async function preloadFrames(config, times) {
   // Add global timeout to ensure the entire function never hangs indefinitely
   return new Promise(async (resolve, reject) => {
     const globalTimeoutId = setTimeout(() => {
-      console.warn('Global timeout: preloadFrames took longer than 2 minutes, aborting');
+      console.warn('Global timeout: preloadFrames took longer than 5 minutes, aborting');
       reject(new Error('Frame loading timeout - server too slow or unresponsive'));
-    }, 120000); // 2 minute global timeout
+    }, 300000); // 5 minute global timeout (increased for slow servers)
     
     try {
       let loadedCount = 0;
       const totalFrames = times.length;
+      let hasFirstFrame = false;
       
       // Set progress bar to loading mode (green background)
       progressFill.style.background = '#00ff00';
       progressFill.style.width = '0%';
       
+      // Reset prefetchedFrames to allow progressive loading
+      prefetchedFrames = [];
+      
       // Limit concurrent requests to avoid overwhelming servers
-      const BATCH_SIZE = 6; // Process 6 frames at a time
+      const BATCH_SIZE = 4; // Reduced batch size for slow servers
       const results = [];
       
       for (let i = 0; i < times.length; i += BATCH_SIZE) {
@@ -175,24 +179,44 @@ async function preloadFrames(config, times) {
         const batchPromises = batch.map(time => new Promise(resolve => {
           const img = new Image();
           
-          // Add timeout to prevent hanging
+          // Add timeout to prevent hanging (increased for slow servers)
           const timeoutId = setTimeout(() => {
-            console.warn(`Frame load timeout after 30 seconds for time: ${time}`);
+            console.warn(`Frame load timeout after 60 seconds for time: ${time}`);
             loadedCount++;
             const progress = (loadedCount / totalFrames) * 100;
             progressFill.style.width = `${progress}%`;
             
             const loadingText = document.querySelector('#loadingMessage');
             if (loadingText) {
-              loadingText.textContent = `Loading ${loadedCount}/${totalFrames}`;
+              loadingText.textContent = `Loading ${loadedCount}/${totalFrames} (timeout)`;
             }
             
             resolve(null); // Resolve with null for timeout
-          }, 30000); // 30 second timeout
+          }, 60000); // 60 second timeout (increased from 30)
           
           img.onload = () => {
             clearTimeout(timeoutId);
             loadedCount++;
+            
+            // Add successful frame to results immediately
+            const frameData = { img, time };
+            results.push(frameData);
+            
+            // Add to prefetchedFrames for immediate use
+            prefetchedFrames.push(frameData);
+            
+            // Start animation as soon as first frame is ready
+            if (!hasFirstFrame) {
+              hasFirstFrame = true;
+              console.log('First frame loaded, starting preview');
+              // Update displays and start animation
+              currentFrame = 0;
+              updateDisplays();
+              if (window.enableAnimation !== false) {
+                startAnimation();
+              }
+            }
+            
             // Update progress bar as frames load
             const progress = (loadedCount / totalFrames) * 100;
             progressFill.style.width = `${progress}%`;
@@ -203,7 +227,7 @@ async function preloadFrames(config, times) {
               loadingText.textContent = `Loading ${loadedCount}/${totalFrames}`;
             }
             
-            resolve({ img, time });
+            resolve(frameData);
           };
           img.onerror = () => {
             clearTimeout(timeoutId);
@@ -226,10 +250,15 @@ async function preloadFrames(config, times) {
         
         // Wait for current batch to complete before starting next batch
         const batchResults = await Promise.all(batchPromises);
-        results.push(...batchResults);
+        // Don't add to results here since we're adding directly in onload
       }
       
-      prefetchedFrames = results.filter(f => f);
+      // Sort prefetchedFrames by time to ensure correct order
+      prefetchedFrames.sort((a, b) => new Date(a.time) - new Date(b.time));
+      
+      // Filter out null results for final count
+      const successfulFrames = results.filter(f => f);
+      console.log(`Successfully loaded ${successfulFrames.length} out of ${totalFrames} frames`);
       
       // Reset progress bar to normal blue color after loading
       progressFill.style.background = '#00aaff';
@@ -381,13 +410,7 @@ async function initMap(config) {
     // Immediately fit the map to the country extent after GetCapabilities
     map.getView().fit(layerExtent, { size: map.getSize(), duration: 1000 });
     
-    // Load radar frames in the background
-    await preloadFrames(config, times);
-    
-    if (prefetchedFrames.length === 0) {
-      throw new Error('Failed to load radar images');
-    }
-    
+    // Set up canvas source early so progressive loading can use it
     imageCanvasSource = new ol.source.ImageCanvas({
       canvasFunction: (extent, res, ratio, size) => {
         if (prefetchedFrames.length === 0) return document.createElement('canvas');
@@ -408,11 +431,19 @@ async function initMap(config) {
       projection: 'EPSG:3857', ratio: 1, imageExtent: layerExtent
     });
 
+    // Add layer to map early
     if (imageCanvasLayer) map.removeLayer(imageCanvasLayer);
     imageCanvasLayer = new ol.layer.Image({ source: imageCanvasSource, opacity: currentOpacity });
     map.getLayers().insertAt(1, imageCanvasLayer);
-    currentFrame = 0;
-    updateDisplays();
+    
+    // Start loading frames progressively in the background
+    // This will start animation as soon as first frame is ready
+    await preloadFrames(config, times);
+    
+    // Final check - if no frames loaded, show error
+    if (prefetchedFrames.length === 0) {
+      throw new Error('Failed to load radar images');
+    }
     
     console.log('Map initialization completed successfully');
     
