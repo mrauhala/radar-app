@@ -20,7 +20,6 @@ const playIcon = document.getElementById('playIcon');
 const timeDisplay = document.querySelector('.time-box .time');
 const dateDisplay = document.querySelector('.time-box .date');
 const progressFill = document.getElementById('progress-bar-fill');
-const loadingIndicator = document.getElementById('loadingIndicator');
 const countryMenu = document.getElementById('countryMenu');
 const countrySelectBtn = document.getElementById('countrySelectBtn');
 
@@ -151,70 +150,105 @@ async function fetchTimes(config) {
 }
 
 async function preloadFrames(config, times) {
-  let loadedCount = 0;
-  const totalFrames = times.length;
-  
-  // Set progress bar to loading mode (green background)
-  progressFill.style.background = '#00ff00';
-  progressFill.style.width = '0%';
-  
-  // Limit concurrent requests to avoid overwhelming servers
-  const BATCH_SIZE = 6; // Process 6 frames at a time
-  const results = [];
-  
-  for (let i = 0; i < times.length; i += BATCH_SIZE) {
-    const batch = times.slice(i, i + BATCH_SIZE);
+  // Add global timeout to ensure the entire function never hangs indefinitely
+  return new Promise(async (resolve, reject) => {
+    const globalTimeoutId = setTimeout(() => {
+      console.warn('Global timeout: preloadFrames took longer than 2 minutes, aborting');
+      reject(new Error('Frame loading timeout - server too slow or unresponsive'));
+    }, 120000); // 2 minute global timeout
     
-    const batchPromises = batch.map(time => new Promise(resolve => {
-      const img = new Image();
-      img.onload = () => {
-        loadedCount++;
-        // Update progress bar as frames load
-        const progress = (loadedCount / totalFrames) * 100;
-        progressFill.style.width = `${progress}%`;
+    try {
+      let loadedCount = 0;
+      const totalFrames = times.length;
+      
+      // Set progress bar to loading mode (green background)
+      progressFill.style.background = '#00ff00';
+      progressFill.style.width = '0%';
+      
+      // Limit concurrent requests to avoid overwhelming servers
+      const BATCH_SIZE = 6; // Process 6 frames at a time
+      const results = [];
+      
+      for (let i = 0; i < times.length; i += BATCH_SIZE) {
+        const batch = times.slice(i, i + BATCH_SIZE);
         
-        // Update loading text to show frame count
-        const loadingText = document.querySelector('#loadingIndicator span');
-        if (loadingText) {
-          loadingText.textContent = `Loading ${loadedCount}/${totalFrames}`;
-        }
+        const batchPromises = batch.map(time => new Promise(resolve => {
+          const img = new Image();
+          
+          // Add timeout to prevent hanging
+          const timeoutId = setTimeout(() => {
+            console.warn(`Frame load timeout after 30 seconds for time: ${time}`);
+            loadedCount++;
+            const progress = (loadedCount / totalFrames) * 100;
+            progressFill.style.width = `${progress}%`;
+            
+            const loadingText = document.querySelector('#loadingMessage');
+            if (loadingText) {
+              loadingText.textContent = `Loading ${loadedCount}/${totalFrames}`;
+            }
+            
+            resolve(null); // Resolve with null for timeout
+          }, 30000); // 30 second timeout
+          
+          img.onload = () => {
+            clearTimeout(timeoutId);
+            loadedCount++;
+            // Update progress bar as frames load
+            const progress = (loadedCount / totalFrames) * 100;
+            progressFill.style.width = `${progress}%`;
+            
+            // Update loading text to show frame count
+            const loadingText = document.querySelector('#loadingMessage');
+            if (loadingText) {
+              loadingText.textContent = `Loading ${loadedCount}/${totalFrames}`;
+            }
+            
+            resolve({ img, time });
+          };
+          img.onerror = () => {
+            clearTimeout(timeoutId);
+            loadedCount++;
+            // Update progress even for failed frames
+            const progress = (loadedCount / totalFrames) * 100;
+            progressFill.style.width = `${progress}%`;
+            
+            // Update loading text to show frame count
+            const loadingText = document.querySelector('#loadingMessage');
+            if (loadingText) {
+              loadingText.textContent = `Loading ${loadedCount}/${totalFrames}`;
+            }
+            
+            console.warn(`Failed to load frame for time: ${time}`);
+            resolve(null);
+          };
+          img.src = `${config.wmsUrl}?service=WMS&version=1.3.0&request=GetMap&layers=${config.layerName}&styles=&format=image/svg+xml&transparent=true&crs=EPSG:3857&bbox=${layerExtent.join(',')}&width=4096&height=4096&time=${time}`.replace(/\+/g, '%2B');
+        }));
         
-        resolve({ img, time });
-      };
-      img.onerror = () => {
-        loadedCount++;
-        // Update progress even for failed frames
-        const progress = (loadedCount / totalFrames) * 100;
-        progressFill.style.width = `${progress}%`;
-        
-        // Update loading text to show frame count
-        const loadingText = document.querySelector('#loadingIndicator span');
-        if (loadingText) {
-          loadingText.textContent = `Loading ${loadedCount}/${totalFrames}`;
-        }
-        
-        console.warn(`Failed to load frame for time: ${time}`);
-        resolve(null);
-      };
-      img.src = `${config.wmsUrl}?service=WMS&version=1.3.0&request=GetMap&layers=${config.layerName}&styles=&format=image/svg+xml&transparent=true&crs=EPSG:3857&bbox=${layerExtent.join(',')}&width=4096&height=4096&time=${time}`.replace(/\+/g, '%2B');
-    }));
-    
-    // Wait for current batch to complete before starting next batch
-    const batchResults = await Promise.all(batchPromises);
-    results.push(...batchResults);
-  }
-  
-  prefetchedFrames = results.filter(f => f);
-  
-  // Reset progress bar to normal blue color after loading
-  progressFill.style.background = '#00aaff';
-  progressFill.style.width = '0%';
-  
-  // Reset loading text
-  const loadingText = document.querySelector('#loadingIndicator span');
-  if (loadingText) {
-    loadingText.textContent = 'Updating…';
-  }
+        // Wait for current batch to complete before starting next batch
+        const batchResults = await Promise.all(batchPromises);
+        results.push(...batchResults);
+      }
+      
+      prefetchedFrames = results.filter(f => f);
+      
+      // Reset progress bar to normal blue color after loading
+      progressFill.style.background = '#00aaff';
+      progressFill.style.width = '0%';
+      
+      // Reset loading text
+      const loadingText = document.querySelector('#loadingMessage');
+      if (loadingText) {
+        loadingText.textContent = 'Updating…';
+      }
+      
+      clearTimeout(globalTimeoutId);
+      resolve();
+      
+    } catch (error) {
+      clearTimeout(globalTimeoutId);
+      reject(error);
+    }
+  });
 }
 
 function showError(message) {
@@ -254,6 +288,39 @@ function hideError() {
   const errorDiv = document.getElementById('errorMessage');
   if (errorDiv) {
     errorDiv.style.display = 'none';
+  }
+}
+
+function showLoadingStatus(message) {
+  // Create or update loading status display
+  let loadingDiv = document.getElementById('loadingMessage');
+  if (!loadingDiv) {
+    loadingDiv = document.createElement('div');
+    loadingDiv.id = 'loadingMessage';
+    loadingDiv.style.cssText = `
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0088cc;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      z-index: 1000;
+      font-family: Arial, sans-serif;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    `;
+    document.body.appendChild(loadingDiv);
+  }
+  
+  loadingDiv.textContent = message;
+  loadingDiv.style.display = 'block';
+}
+
+function hideLoadingStatus() {
+  const loadingDiv = document.getElementById('loadingMessage');
+  if (loadingDiv) {
+    loadingDiv.style.display = 'none';
   }
 }
 
@@ -298,7 +365,7 @@ function stopAnimation() {
 async function initMap(config) {
   try {
     // Show loading indicator for entire process
-    loadingIndicator.style.display = 'flex';
+    showLoadingStatus('Connecting to radar server...');
     hideError();
     
     console.log(`Initializing map for ${Object.keys(wmsConfigs).find(key => wmsConfigs[key] === config)}`);
@@ -365,7 +432,7 @@ async function initMap(config) {
     }
     
   } finally {
-    loadingIndicator.style.display = 'none';
+    hideLoadingStatus();
   }
 }
 

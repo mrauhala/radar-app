@@ -25,9 +25,6 @@
     #countryMenu button:hover { background: rgba(255,255,255,0.2); }
     #progress-bar { position: absolute; bottom: 0; left: 0; height: 4px; width: 100%; background: #444; border-radius: 0 0 12px 12px; overflow: hidden; z-index: 11; }
     #progress-bar-fill { height: 100%; width: 0%; background: #00aaff; transition: width 0.2s; }
-    #loadingIndicator { display: none; align-items: center; margin-right: 8px; }
-    .spinner { width: 16px; height: 16px; border: 2px solid white; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 5px; }
-    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     /* Hide OpenLayers zoom controls */
     .ol-zoom { display: none !important; }
   </style>
@@ -53,10 +50,6 @@
     <svg viewBox="0 0 24 24"><path d="M14 6v12l6-6-6-6zm-2 0h-2v12h2z"/></svg>
   </button>
   <div class="time-display">
-    <div id="loadingIndicator">
-      <div class="spinner"></div>
-      <span>Updating…</span>
-    </div>
     <div class="time-box">
       <div class="time">--.--</div>
       <div class="date">--.--.----</div>
