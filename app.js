@@ -93,6 +93,9 @@ function parsePeriodTimes(raw) {
 
 async function fetchTimes(config) {
   try {
+    // Update status to show we're fetching capabilities
+    showLoadingStatus('Fetching server capabilities...');
+    
     // Create AbortController for timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
@@ -112,6 +115,9 @@ async function fetchTimes(config) {
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
+    
+    // Update status to show we're parsing capabilities
+    showLoadingStatus('Processing server capabilities...');
     
     const xml = await response.text();
     const doc = new DOMParser().parseFromString(xml, 'text/xml');
@@ -136,6 +142,9 @@ async function fetchTimes(config) {
     if (!dim || !dim.textContent) {
       throw new Error('No time dimension found in layer');
     }
+    
+    // Update status to show capabilities loaded successfully
+    showLoadingStatus('Server capabilities loaded successfully');
     
     return dim.textContent.includes(',') ? dim.textContent.split(',').slice(-12) : parsePeriodTimes(dim.textContent).slice(-12);
   } catch (error) {
@@ -162,6 +171,9 @@ async function preloadFrames(config, times) {
       const totalFrames = times.length;
       let hasFirstFrame = false;
       
+      // Update status to show we're starting to load images
+      showLoadingStatus(`Starting to load ${totalFrames} radar images...`);
+      
       // Set progress bar to loading mode (green background)
       progressFill.style.background = '#00ff00';
       progressFill.style.width = '0%';
@@ -186,10 +198,8 @@ async function preloadFrames(config, times) {
             const progress = (loadedCount / totalFrames) * 100;
             progressFill.style.width = `${progress}%`;
             
-            const loadingText = document.querySelector('#loadingMessage');
-            if (loadingText) {
-              loadingText.textContent = `Loading ${loadedCount}/${totalFrames} (timeout)`;
-            }
+            // Update status with timeout info
+            showLoadingStatus(`Loading ${loadedCount}/${totalFrames} radar images (some timeouts)...`);
             
             resolve(null); // Resolve with null for timeout
           }, 60000); // 60 second timeout (increased from 30)
@@ -209,6 +219,8 @@ async function preloadFrames(config, times) {
             if (!hasFirstFrame) {
               hasFirstFrame = true;
               console.log('First frame loaded, starting preview');
+              // Update status to show first frame is ready
+              showLoadingStatus(`First radar image loaded, loading remaining ${totalFrames - 1}...`);
               // Update displays and start animation
               currentFrame = 0;
               updateDisplays();
@@ -221,10 +233,13 @@ async function preloadFrames(config, times) {
             const progress = (loadedCount / totalFrames) * 100;
             progressFill.style.width = `${progress}%`;
             
-            // Update loading text to show frame count
-            const loadingText = document.querySelector('#loadingMessage');
-            if (loadingText) {
-              loadingText.textContent = `Loading ${loadedCount}/${totalFrames}`;
+            // Update loading status to show frame count
+            if (!hasFirstFrame) {
+              // Still loading first frame
+              showLoadingStatus(`Loading radar images ${loadedCount}/${totalFrames}...`);
+            } else {
+              // First frame loaded, showing remaining count
+              showLoadingStatus(`First radar image loaded, loading remaining ${totalFrames - loadedCount}...`);
             }
             
             resolve(frameData);
@@ -236,11 +251,8 @@ async function preloadFrames(config, times) {
             const progress = (loadedCount / totalFrames) * 100;
             progressFill.style.width = `${progress}%`;
             
-            // Update loading text to show frame count
-            const loadingText = document.querySelector('#loadingMessage');
-            if (loadingText) {
-              loadingText.textContent = `Loading ${loadedCount}/${totalFrames}`;
-            }
+            // Update loading status to show frame count with error info
+            showLoadingStatus(`Loading ${loadedCount}/${totalFrames} radar images (some errors)...`);
             
             console.warn(`Failed to load frame for time: ${time}`);
             resolve(null);
@@ -260,15 +272,21 @@ async function preloadFrames(config, times) {
       const successfulFrames = results.filter(f => f);
       console.log(`Successfully loaded ${successfulFrames.length} out of ${totalFrames} frames`);
       
+      // Show completion status
+      if (successfulFrames.length === totalFrames) {
+        showLoadingStatus(`All ${totalFrames} radar images loaded successfully!`);
+      } else if (successfulFrames.length > 0) {
+        showLoadingStatus(`Loaded ${successfulFrames.length} of ${totalFrames} radar images`);
+      }
+      
       // Reset progress bar to normal blue color after loading
       progressFill.style.background = '#00aaff';
       progressFill.style.width = '0%';
       
-      // Reset loading text
-      const loadingText = document.querySelector('#loadingMessage');
-      if (loadingText) {
-        loadingText.textContent = 'Updating…';
-      }
+      // Hide loading status after a short delay to show completion message
+      setTimeout(() => {
+        hideLoadingStatus();
+      }, 2000);
       
       clearTimeout(globalTimeoutId);
       resolve();
@@ -412,6 +430,9 @@ async function initMap(config) {
     }
     
     console.log(`Found ${times.length} time frames`);
+    
+    // Update status to show we're preparing to load images
+    showLoadingStatus('Preparing to load radar images...');
     
     // Immediately fit the map to the country extent after GetCapabilities
     map.getView().fit(layerExtent, { size: map.getSize(), duration: 1000 });
