@@ -288,19 +288,18 @@ function showError(message) {
     errorDiv.id = 'errorMessage';
     errorDiv.style.cssText = `
       position: fixed;
-      top: calc(20px + env(safe-area-inset-top));
-      left: 50%;
-      transform: translateX(-50%);
+      top: max(40px, calc(40px + env(safe-area-inset-top)));
+      left: calc(10px + env(safe-area-inset-left));
+      right: calc(10px + env(safe-area-inset-right));
       background: #ff4444;
       color: white;
-      padding: 12px 20px;
+      padding: 12px 16px;
       border-radius: 8px;
       z-index: 1000;
       font-family: Arial, sans-serif;
       font-size: 14px;
       font-weight: 500;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-      max-width: calc(100vw - 40px);
       text-align: center;
     `;
     document.body.appendChild(errorDiv);
@@ -332,19 +331,18 @@ function showLoadingStatus(message) {
     loadingDiv.id = 'loadingMessage';
     loadingDiv.style.cssText = `
       position: fixed;
-      top: calc(20px + env(safe-area-inset-top));
-      left: 50%;
-      transform: translateX(-50%);
+      top: max(40px, calc(40px + env(safe-area-inset-top)));
+      left: calc(10px + env(safe-area-inset-left));
+      right: calc(10px + env(safe-area-inset-right));
       background: #0088cc;
       color: white;
-      padding: 12px 20px;
+      padding: 12px 16px;
       border-radius: 8px;
       z-index: 1000;
       font-family: Arial, sans-serif;
       font-size: 14px;
       font-weight: 500;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-      max-width: calc(100vw - 40px);
       text-align: center;
     `;
     document.body.appendChild(loadingDiv);
