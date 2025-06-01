@@ -15,7 +15,7 @@ COPY manifest.json ./
 COPY sw.js ./
 COPY browserconfig.xml ./
 
-# Copy nginx configuration
+# Copy nginx configuration as server block
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Create necessary directories for nginx to run as non-root
@@ -25,8 +25,10 @@ RUN mkdir -p /var/cache/nginx/client_temp \
              /var/cache/nginx/uwsgi_temp \
              /var/cache/nginx/scgi_temp \
              /var/run/nginx \
-    && chown -R nginx:nginx /var/cache/nginx /var/run/nginx \
-    && chmod -R 755 /var/cache/nginx /var/run/nginx
+             /var/log/nginx \
+             /tmp/nginx \
+    && chown -R nginx:nginx /var/cache/nginx /var/run/nginx /var/log/nginx /tmp/nginx \
+    && chmod -R 755 /var/cache/nginx /var/run/nginx /var/log/nginx /tmp/nginx
 
 # Create icons directory (will be empty if no icons exist)
 RUN mkdir -p icons
@@ -37,9 +39,6 @@ RUN mkdir -p icons
 # Set proper permissions
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
     chmod -R 755 /usr/share/nginx/html
-
-# Create non-root user for security  
-USER nginx
 
 # Expose port 8080
 EXPOSE 8080
