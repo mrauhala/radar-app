@@ -21,8 +21,8 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Create icons directory (will be empty if no icons exist)
 RUN mkdir -p icons
 
-# Copy icons if they exist
-COPY icons/ ./icons/ 2>/dev/null || true
+# Copy icons if they exist (commented out until icons are created)
+# COPY icons/ ./icons/ 2>/dev/null || true
 
 # Set proper permissions
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
