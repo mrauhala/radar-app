@@ -28,6 +28,8 @@
     #loadingIndicator { display: none; align-items: center; margin-right: 8px; }
     .spinner { width: 16px; height: 16px; border: 2px solid white; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 5px; }
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    /* Hide OpenLayers zoom controls */
+    .ol-zoom { display: none !important; }
   </style>
 </head>
 <body>
@@ -69,6 +71,7 @@
 </div>
 <div id="progress-bar"><div id="progress-bar-fill"></div></div>
 <script src="https://cdn.jsdelivr.net/npm/ol@v10.5.0/dist/ol.js"></script>
+<script src="config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -1,14 +1,9 @@
 (async function() {
-const wmsConfigs = {
-  finland: { wmsUrl: 'https://data.fmi.fi/fmi-apikey/dc50c49c-8111-4b48-aa2c-e9797f5c71da/wms', layerName: 'fmi:observation:radar:PrecipitationRate5min' },
-  ethiopia: { wmsUrl: 'https://data-ethiopia.smartmet.org/wms', layerName: 'radar:composite_dbz' },
-  vietnam: { wmsUrl: 'https://data.apps.nchmf.gov.vn/wms', layerName: 'vnmha:radar:comp_dbz' },
-  georgia: { wmsUrl: 'https://data.nea.gov.ge/wms', layerName: 'radar:composite_dbz' }
-};
+// WMS configuration is now loaded from config.js
 
 let map, layerExtent = [-20037508, -20037508, 20037508, 20037508];
-let currentBase = localStorage.getItem('lastBase') || 'light';
-let currentCountry = localStorage.getItem('lastCountry') || 'ethiopia';
+let currentBase = localStorage.getItem('lastBase') || 'dark';
+let currentCountry = localStorage.getItem('lastCountry') || 'finland';
 let currentOpacity = parseFloat(localStorage.getItem('lastOpacity')) || 0.7;
 let speedIndex = parseInt(localStorage.getItem('lastSpeedIndex')) || 1;
 let intervalDelay = [450, 225, 150, 113][speedIndex];
@@ -56,7 +51,7 @@ overlayLayerDark = new ol.layer.Tile({ source: new ol.source.XYZ({ url: 'https:/
 
 map = new ol.Map({
   target: 'map',
-  layers: [currentBase === 'light' ? baseLayerLight : baseLayerDark, currentBase === 'dark' ? overlayLayerLight : overlayLayerDark],
+  layers: [currentBase === 'light' ? baseLayerLight : baseLayerDark, currentBase === 'light' ? overlayLayerLight : overlayLayerDark],
   view: new ol.View({ center: [0, 0], zoom: 2, projection: 'EPSG:3857' })
 });
 
@@ -253,6 +248,10 @@ async function initMap(config) {
     
     console.log(`Found ${times.length} time frames`);
     
+    // Immediately fit the map to the country extent after GetCapabilities
+    map.getView().fit(layerExtent, { size: map.getSize(), duration: 1000 });
+    
+    // Load radar frames in the background
     await preloadFrames(config, times);
     
     if (prefetchedFrames.length === 0) {
@@ -282,7 +281,6 @@ async function initMap(config) {
     if (imageCanvasLayer) map.removeLayer(imageCanvasLayer);
     imageCanvasLayer = new ol.layer.Image({ source: imageCanvasSource, opacity: currentOpacity });
     map.getLayers().insertAt(1, imageCanvasLayer);
-    map.getView().fit(layerExtent, { size: map.getSize() });
     currentFrame = 0;
     updateDisplays();
     
