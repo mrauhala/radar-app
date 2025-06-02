@@ -48,30 +48,59 @@ countryMenu.querySelectorAll('button').forEach(btn => {
 speedLabel.textContent = `${speedIndex + 1}×`;
 opacityBtn.textContent = `${Math.round(currentOpacity * 100)}%`;
 
-let imageCanvasSource, imageCanvasLayer, baseLayerLight, baseLayerDark, overlayLayerLight, overlayLayerDark;
-baseLayerLight = new ol.layer.Tile({ source: new ol.source.XYZ({ url: 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}' }) });
-baseLayerDark = new ol.layer.Tile({ source: new ol.source.XYZ({ url: 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}' }) });
-overlayLayerLight = new ol.layer.Tile({ source: new ol.source.XYZ({ url: 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}' }) });
-overlayLayerDark = new ol.layer.Tile({ source: new ol.source.XYZ({ url: 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}' }) });
+let imageCanvasSource, baseLayer, radarLayer, overlayLayer;
+
+// Create base layer sources for both themes
+const baseLayerLightSource = new ol.source.XYZ({ url: 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}' });
+const baseLayerDarkSource = new ol.source.XYZ({ url: 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}' });
+const overlayLayerLightSource = new ol.source.XYZ({ url: 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}' });
+const overlayLayerDarkSource = new ol.source.XYZ({ url: 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}' });
+
+// Create the three fixed layers
+baseLayer = new ol.layer.Tile({ 
+  source: currentBase === 'light' ? baseLayerLightSource : baseLayerDarkSource 
+});
+
+radarLayer = new ol.layer.Image({ 
+  source: null, // Will be set when radar data loads
+  opacity: currentOpacity 
+});
+
+overlayLayer = new ol.layer.Tile({ 
+  source: currentBase === 'light' ? overlayLayerLightSource : overlayLayerDarkSource 
+});
 
 map = new ol.Map({
   target: 'map',
-  layers: [currentBase === 'light' ? baseLayerLight : baseLayerDark, currentBase === 'light' ? overlayLayerLight : overlayLayerDark],
+  layers: [
+    baseLayer,    // Position 0: Base layer (always bottom)
+    radarLayer,   // Position 1: Radar layer (always middle)
+    overlayLayer  // Position 2: Overlay layer (always top)
+  ],
   view: new ol.View({ center: [0, 0], zoom: 2, projection: 'EPSG:3857' })
 });
 
 opacityBtn.addEventListener('click', () => {
   currentOpacity = (currentOpacity + 0.1 > 1) ? 0.1 : currentOpacity + 0.1;
   localStorage.setItem('lastOpacity', currentOpacity);
-  if (imageCanvasLayer) imageCanvasLayer.setOpacity(currentOpacity);
+  if (radarLayer) radarLayer.setOpacity(currentOpacity);
   opacityBtn.textContent = `${Math.round(currentOpacity * 100)}%`;
 });
 
 toggleBaseBtn.addEventListener('click', () => {
   currentBase = currentBase === 'light' ? 'dark' : 'light';
   localStorage.setItem('lastBase', currentBase);
-  map.getLayers().setAt(0, currentBase === 'light' ? baseLayerLight : baseLayerDark);
-  map.getLayers().setAt(1, currentBase === 'light' ? overlayLayerLight : overlayLayerDark);
+  
+  console.log('Theme toggle - Switching to:', currentBase);
+  
+  // Simply update the sources of the existing fixed layers
+  baseLayer.setSource(currentBase === 'light' ? baseLayerLightSource : baseLayerDarkSource);
+  overlayLayer.setSource(currentBase === 'light' ? overlayLayerLightSource : overlayLayerDarkSource);
+  
+  console.log('Theme toggle - Updated layer sources for', currentBase, 'theme');
+  
+  // Force rendering
+  map.render();
 });
 
 speedLabel.addEventListener('click', () => {
@@ -450,7 +479,7 @@ async function initMap(config) {
     // Immediately fit the map to the country extent after GetCapabilities
     map.getView().fit(layerExtent, { size: map.getSize(), duration: 1000 });
     
-    // Set up canvas source early so progressive loading can use it
+    // Set up canvas source for radar layer
     imageCanvasSource = new ol.source.ImageCanvas({
       canvasFunction: (extent, res, ratio, size) => {
         if (prefetchedFrames.length === 0) return document.createElement('canvas');
@@ -471,10 +500,11 @@ async function initMap(config) {
       projection: 'EPSG:3857', ratio: 1, imageExtent: layerExtent
     });
 
-    // Add layer to map early
-    if (imageCanvasLayer) map.removeLayer(imageCanvasLayer);
-    imageCanvasLayer = new ol.layer.Image({ source: imageCanvasSource, opacity: currentOpacity });
-    map.getLayers().insertAt(1, imageCanvasLayer);
+    // Update the radar layer source instead of adding/removing layers
+    radarLayer.setSource(imageCanvasSource);
+    radarLayer.setOpacity(currentOpacity);
+    
+    console.log('initMap - Updated radar layer source');
     
     // Start loading frames progressively in the background
     // This will start animation as soon as first frame is ready
@@ -500,10 +530,9 @@ async function initMap(config) {
     stopAnimation();
     stopAutoRefresh(); // Stop auto-refresh on error
     
-    // Clear any existing radar layer
-    if (imageCanvasLayer) {
-      map.removeLayer(imageCanvasLayer);
-      imageCanvasLayer = null;
+    // Clear any existing radar layer source
+    if (radarLayer) {
+      radarLayer.setSource(null);
     }
     
   } finally {
