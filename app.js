@@ -115,6 +115,242 @@ playPauseBtn.addEventListener('click', () => { isPlaying ? stopAnimation() : sta
 nextBtn.addEventListener('click', () => { stopAnimation(); nextFrame(); });
 prevBtn.addEventListener('click', () => { stopAnimation(); prevFrame(); });
 
+// Keyboard shortcuts for playback control
+document.addEventListener('keydown', (event) => {
+  // Only handle keyboard shortcuts if not typing in an input field
+  if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+    return;
+  }
+  
+  // Prevent default behavior for handled keys
+  const handledKeys = [
+    'Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+    'Digit1', 'Digit2', 'Digit3', 'Digit4',
+    'KeyP', 'KeyS', 'KeyN', 'KeyB', 'KeyF',
+    'KeyL', 'KeyD', 'KeyO', 'KeyR'
+  ];
+  
+  if (handledKeys.includes(event.code)) {
+    event.preventDefault();
+  }
+  
+  switch (event.code) {
+    case 'Space': // Spacebar - Play/Pause toggle
+      isPlaying ? stopAnimation() : startAnimation();
+      break;
+      
+    case 'ArrowLeft': // Left arrow - Previous frame
+    case 'KeyB': // B key - Previous frame (alternative)
+      stopAnimation();
+      prevFrame();
+      break;
+      
+    case 'ArrowRight': // Right arrow - Next frame  
+    case 'KeyN': // N key - Next frame (alternative)
+      stopAnimation();
+      nextFrame();
+      break;
+      
+    case 'ArrowUp': // Up arrow - Increase speed
+      if (speedIndex < speeds.length - 1) {
+        speedIndex++;
+        intervalDelay = speeds[speedIndex];
+        speedLabel.textContent = `${speedIndex + 1}×`;
+        localStorage.setItem('lastSpeedIndex', speedIndex);
+        if (isPlaying) startAnimation();
+      }
+      break;
+      
+    case 'ArrowDown': // Down arrow - Decrease speed
+      if (speedIndex > 0) {
+        speedIndex--;
+        intervalDelay = speeds[speedIndex];
+        speedLabel.textContent = `${speedIndex + 1}×`;
+        localStorage.setItem('lastSpeedIndex', speedIndex);
+        if (isPlaying) startAnimation();
+      }
+      break;
+      
+    case 'Digit1': // Number keys 1-4 for speed control
+      speedIndex = 0;
+      intervalDelay = speeds[speedIndex];
+      speedLabel.textContent = `${speedIndex + 1}×`;
+      localStorage.setItem('lastSpeedIndex', speedIndex);
+      if (isPlaying) startAnimation();
+      break;
+      
+    case 'Digit2':
+      speedIndex = 1;
+      intervalDelay = speeds[speedIndex];
+      speedLabel.textContent = `${speedIndex + 1}×`;
+      localStorage.setItem('lastSpeedIndex', speedIndex);
+      if (isPlaying) startAnimation();
+      break;
+      
+    case 'Digit3':
+      speedIndex = 2;
+      intervalDelay = speeds[speedIndex];
+      speedLabel.textContent = `${speedIndex + 1}×`;
+      localStorage.setItem('lastSpeedIndex', speedIndex);
+      if (isPlaying) startAnimation();
+      break;
+      
+    case 'Digit4':
+      speedIndex = 3;
+      intervalDelay = speeds[speedIndex];
+      speedLabel.textContent = `${speedIndex + 1}×`;
+      localStorage.setItem('lastSpeedIndex', speedIndex);
+      if (isPlaying) startAnimation();
+      break;
+      
+    case 'KeyP': // P key - Play/Pause (alternative)
+      isPlaying ? stopAnimation() : startAnimation();
+      break;
+      
+    case 'KeyS': // S key - Stop animation
+      stopAnimation();
+      break;
+      
+    case 'KeyF': // F key - Go to first frame
+      stopAnimation();
+      if (prefetchedFrames.length > 0) {
+        currentFrame = 0;
+        imageCanvasSource.changed();
+        updateDisplays();
+      }
+      break;
+      
+    case 'KeyL': // L key - Go to last frame
+      stopAnimation();
+      if (prefetchedFrames.length > 0) {
+        currentFrame = prefetchedFrames.length - 1;
+        imageCanvasSource.changed();
+        updateDisplays();
+      }
+      break;
+      
+    case 'KeyD': // D key - Toggle dark/light theme
+      toggleBaseBtn.click();
+      break;
+      
+    case 'KeyO': // O key - Cycle opacity
+      opacityBtn.click();
+      break;
+      
+    case 'KeyR': // R key - Restart/refresh animation
+      if (prefetchedFrames.length > 0) {
+        stopAnimation();
+        currentFrame = 0;
+        updateDisplays();
+        startAnimation();
+      }
+      break;
+  }
+});
+
+// Show keyboard shortcuts help on first visit or when ? is pressed
+document.addEventListener('keydown', (event) => {
+  if (event.key === '?' || event.key === '/') {
+    event.preventDefault();
+    showKeyboardHelp();
+  }
+});
+
+function showKeyboardHelp() {
+  // Create or show keyboard shortcuts overlay
+  let helpOverlay = document.getElementById('keyboardHelp');
+  if (!helpOverlay) {
+    helpOverlay = document.createElement('div');
+    helpOverlay.id = 'keyboardHelp';
+    helpOverlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.9);
+      color: white;
+      z-index: 1001;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      box-sizing: border-box;
+    `;
+    
+    helpOverlay.innerHTML = `
+      <div style="max-width: 600px; width: 100%;">
+        <h2 style="text-align: center; margin-bottom: 20px; color: #00aaff;">⌨️ Keyboard Shortcuts</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 14px;">
+          <div>
+            <h3 style="color: #00aaff; margin-bottom: 10px;">Playback Control</h3>
+            <div style="margin-bottom: 8px;"><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">Space</kbd> Play/Pause</div>
+            <div style="margin-bottom: 8px;"><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">P</kbd> Play/Pause</div>
+            <div style="margin-bottom: 8px;"><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">S</kbd> Stop</div>
+            <div style="margin-bottom: 8px;"><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">R</kbd> Restart</div>
+            
+            <h3 style="color: #00aaff; margin: 20px 0 10px 0;">Frame Navigation</h3>
+            <div style="margin-bottom: 8px;"><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">←</kbd> Previous frame</div>
+            <div style="margin-bottom: 8px;"><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">→</kbd> Next frame</div>
+            <div style="margin-bottom: 8px;"><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">F</kbd> First frame</div>
+            <div style="margin-bottom: 8px;"><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">L</kbd> Last frame</div>
+            <div style="margin-bottom: 8px;"><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">B</kbd> Previous (alt)</div>
+            <div style="margin-bottom: 8px;"><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">N</kbd> Next (alt)</div>
+          </div>
+          <div>
+            <h3 style="color: #00aaff; margin-bottom: 10px;">Speed Control</h3>
+            <div style="margin-bottom: 8px;"><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">↑</kbd> Increase speed</div>
+            <div style="margin-bottom: 8px;"><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">↓</kbd> Decrease speed</div>
+            <div style="margin-bottom: 8px;"><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">1</kbd> Speed 1×</div>
+            <div style="margin-bottom: 8px;"><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">2</kbd> Speed 2×</div>
+            <div style="margin-bottom: 8px;"><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">3</kbd> Speed 3×</div>
+            <div style="margin-bottom: 8px;"><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">4</kbd> Speed 4×</div>
+            
+            <h3 style="color: #00aaff; margin: 20px 0 10px 0;">Display</h3>
+            <div style="margin-bottom: 8px;"><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">D</kbd> Toggle theme</div>
+            <div style="margin-bottom: 8px;"><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">O</kbd> Cycle opacity</div>
+            <div style="margin-bottom: 8px;"><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">?</kbd> Show this help</div>
+          </div>
+        </div>
+        <div style="text-align: center; margin-top: 30px;">
+          <button onclick="document.getElementById('keyboardHelp').style.display='none'" 
+                  style="background: #00aaff; border: none; color: white; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 16px;">
+            Close (ESC)
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(helpOverlay);
+    
+    // Close on escape key or click outside
+    helpOverlay.addEventListener('click', (e) => {
+      if (e.target === helpOverlay) {
+        helpOverlay.style.display = 'none';
+      }
+    });
+    
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && helpOverlay.style.display !== 'none') {
+        helpOverlay.style.display = 'none';
+      }
+    });
+  }
+  
+  helpOverlay.style.display = 'flex';
+}
+
+// Show help on first visit
+let hasShownHelp = localStorage.getItem('hasShownKeyboardHelp');
+if (!hasShownHelp) {
+  setTimeout(() => {
+    showKeyboardHelp();
+    localStorage.setItem('hasShownKeyboardHelp', 'true');
+  }, 3000); // Show after 3 seconds on first visit
+}
+
 function parsePeriodTimes(raw) {
   const [start, end, period] = raw.split('/').map(s => s.trim());
   const startDate = new Date(start), endDate = new Date(end);

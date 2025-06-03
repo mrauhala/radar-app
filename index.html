@@ -167,14 +167,16 @@ if ('serviceWorker' in navigator) {
           if (newWorker) {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // New content is available, prompt user to refresh
-                if (confirm('New version available! Refresh to update?')) {
-                  window.location.reload();
-                }
+                // New content is available, force reload
+                console.log('New service worker installed, reloading page...');
+                window.location.reload();
               }
             });
           }
         });
+        
+        // Force check for updates
+        registration.update();
       })
       .catch(registrationError => {
         console.log('SW registration failed: ', registrationError);

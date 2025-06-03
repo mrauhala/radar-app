@@ -1,4 +1,4 @@
-const CACHE_NAME = 'radar-app-v1';
+const CACHE_NAME = 'radar-app-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -19,7 +19,7 @@ self.addEventListener('install', event => {
         return cache.addAll(STATIC_ASSETS);
       })
       .then(() => {
-        console.log('Service Worker: Skip waiting');
+        console.log('Service Worker: Skip waiting and force activation');
         return self.skipWaiting();
       })
   );
